@@ -1,0 +1,58 @@
+# hermes-plugin-web-local
+
+Keyless **local web extract** provider for [Hermes Agent](https://github.com/NousResearch/hermes-agent).
+It fetches pages directly from your machine with `httpx` and reduces them to readable
+text with [`trafilatura`](https://github.com/adbar/trafilatura) (Apache-2.0). No API key,
+no third-party extraction service. It only extracts: pair it with any search provider
+(`ddgs`, `searxng`, `brave-free`, ...).
+
+## Install
+
+```bash
+hermes plugins install https://github.com/enzo-adami/hermes-plugin-web-local
+```
+
+Then select it for extraction in `config.yaml`:
+
+```yaml
+web:
+  extract_backend: local
+  search_backend: ddgs   # keep an explicit search backend
+```
+
+Until NousResearch/hermes-agent skips extract-only providers during search auto-detection,
+keep `web.search_backend` explicit. Otherwise an always-available extract-only provider
+can be picked for search.
+
+## What it does (disclosure)
+
+- **Network**: requests only the URLs the agent asks to extract, from this machine.
+  It contacts no other service, sends no telemetry and stores no credentials.
+- **Safety**: the SSRF check (`tools.url_safety`) and the website policy
+  (`tools.website_policy`) run again on **every** redirect hop. Redirects are followed
+  manually, at most 5 hops. Bodies are capped at 10 MB.
+- **Time**: each URL is waited at most 60 s. A batch stays inside the caller's
+  `web.extract_timeout` (120 s by default) minus a small margin, so completed pages are
+  kept when later ones hang. A body that trickles in slowly is cut at the deadline.
+  Threads are not cancelled: a blocked DNS lookup or read can outlive the wait.
+- **Content**: HTML goes through trafilatura's in-memory API only (its own
+  `fetch_url` is never called). `text/plain` is returned as is. An unknown charset
+  falls back to UTF-8 instead of failing.
+
+## Tests
+
+Run with the Python of a Hermes install, so that `agent` and `tools` can be imported. You can also
+point `HERMES_AGENT_REPO` at a hermes-agent checkout:
+
+```bash
+HERMES_AGENT_REPO=~/.hermes/hermes-agent python -m pytest tests -q
+```
+
+## Origin
+
+This plugin was first proposed in-tree as NousResearch/hermes-agent#90188. It is published here as a
+standalone plugin, following the project's policy for third-party integrations.
+
+## License
+
+MIT
