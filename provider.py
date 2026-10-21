@@ -367,9 +367,8 @@ def _extract_one(url: str, format: Optional[str]) -> dict[str, Any]:
             "title": "",
             "content": "",
             "raw_content": "",
-            "error": (
-                "trafilatura is unavailable; prepare the plugin dependencies through PM: "
-                f"{exc}"
+            "error": _dependency_problem() or (
+                f"trafilatura import failed in {sys.executable}: {exc}"
             ),
         }
 

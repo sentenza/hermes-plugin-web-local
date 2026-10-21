@@ -48,3 +48,46 @@ def test_extract_short_circuits_without_network(monkeypatch):
         assert item["content"] == ""
         assert "trafilatura" in item["error"]
         assert provider.sys.executable in item["error"]
+
+
+def _stub_fetch(monkeypatch):
+    monkeypatch.setattr(
+        provider,
+        "_fetch_readable",
+        lambda url: {
+            "final_url": url,
+            "content": b"<html><body><p>hi</p></body></html>",
+            "content_type": "text/html",
+            "encoding": None,
+        },
+    )
+
+
+def test_extract_one_import_error_uses_the_same_diagnostic(monkeypatch):
+    def _raise():
+        raise ImportError("No module named 'trafilatura'")
+
+    monkeypatch.setattr(provider, "_import_trafilatura", _raise)
+    monkeypatch.setattr(provider, "_find_spec", lambda name: None)
+    _stub_fetch(monkeypatch)
+
+    item = provider._extract_one("https://example.com/a", None)
+
+    assert "trafilatura" in item["error"]
+    assert provider.sys.executable in item["error"]
+
+
+def test_extract_one_import_error_names_interpreter_when_module_present(monkeypatch):
+    """A present-but-broken install must still say which interpreter to fix."""
+
+    def _raise():
+        raise ImportError("cannot import name 'extract' from 'trafilatura'")
+
+    monkeypatch.setattr(provider, "_import_trafilatura", _raise)
+    monkeypatch.setattr(provider, "_find_spec", lambda name: object())
+    _stub_fetch(monkeypatch)
+
+    item = provider._extract_one("https://example.com/a", None)
+
+    assert "trafilatura" in item["error"]
+    assert provider.sys.executable in item["error"]
