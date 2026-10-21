@@ -105,7 +105,7 @@ _TRAFILATURA_REMEDY = (
     "dependency installed into another venv has no effect. Run:\n"
     "  python -c \"import sys; print(sys.executable)\"\n"
     "  uv pip install --python <that python> 'trafilatura>=2.0,<3'\n"
-    "then restart the gateway/agent."
+    "No restart needed: the import happens on the next extract."
 )
 
 

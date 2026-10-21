@@ -1,8 +1,6 @@
 """Diagnostics for a missing trafilatura: the plugin must say WHERE to install it."""
 import asyncio
 
-import pytest
-
 import provider
 
 
