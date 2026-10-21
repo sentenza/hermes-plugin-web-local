@@ -105,6 +105,7 @@ _TRAFILATURA_REMEDY = (
     "dependency installed into another venv has no effect. Run:\n"
     "  python -c \"import sys; print(sys.executable)\"\n"
     "  uv pip install --python <that python> 'trafilatura>=2.0,<3'\n"
+    "  (or: <that python> -m pip install 'trafilatura>=2.0,<3')\n"
     "No restart needed: the import happens on the next extract."
 )
 
@@ -485,8 +486,20 @@ class LocalWebSearchProvider(WebSearchProvider):
 
             logger.info("Local extract: %s", url)
             timeout = _EXTRACT_TIMEOUT_SECS
+            budget_limited = False
             if deadline is not None:
-                timeout = min(timeout, deadline - loop.time())
+                remaining = deadline - loop.time()
+                if remaining < timeout:
+                    # The batch deadline ends this wait, not the per-URL cap:
+                    # the page never got its full allowance.
+                    timeout = remaining
+                    budget_limited = True
+            # Decide the reason BEFORE waiting: comparing the timeout
+            # afterwards mislabels a clamped wait as a per-URL timeout.
+            if budget_limited:
+                reason = f"Extract batch time budget exhausted ({budget:g}s)"
+            else:
+                reason = f"Extract timed out after {_EXTRACT_TIMEOUT_SECS}s"
             try:
                 if timeout <= 0:
                     raise TimeoutError
@@ -496,9 +509,6 @@ class LocalWebSearchProvider(WebSearchProvider):
                 )
             except TimeoutError:
                 logger.warning("Local extract timed out for %s", url)
-                reason = (f"Extract timed out after {_EXTRACT_TIMEOUT_SECS}s"
-                          if timeout == _EXTRACT_TIMEOUT_SECS
-                          else f"Extract batch time budget exhausted ({budget:.0f}s)")
                 item = {
                     "url": url,
                     "title": "",

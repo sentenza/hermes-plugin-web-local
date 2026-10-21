@@ -1,5 +1,6 @@
 """Diagnostics for a missing trafilatura: the plugin must say WHERE to install it."""
 import asyncio
+import time
 
 import provider
 
@@ -73,6 +74,34 @@ def test_extract_one_import_error_uses_the_same_diagnostic(monkeypatch):
 
     assert "trafilatura" in item["error"]
     assert provider.sys.executable in item["error"]
+
+
+def test_batch_budget_exhaustion_is_reported_as_such(monkeypatch):
+    monkeypatch.setattr(provider, "_batch_budget_secs", lambda: 0.05)
+    monkeypatch.setattr(provider, "_extract_one", lambda url, fmt: (time.sleep(0.5), {"url": url})[1])
+    monkeypatch.setattr(provider, "_EXTRACT_TIMEOUT_SECS", 60)
+
+    results = asyncio.run(
+        provider.LocalWebSearchProvider().extract(
+            ["https://example.com/a", "https://example.com/b"]
+        )
+    )
+
+    assert "budget" in results[-1]["error"], results
+
+
+def test_per_url_timeout_is_not_reported_as_budget_exhaustion(monkeypatch):
+    """The batch budget still had time: this is a per-URL timeout, not the budget."""
+    monkeypatch.setattr(provider, "_batch_budget_secs", lambda: 120.0)
+    monkeypatch.setattr(provider, "_extract_one", lambda url, fmt: (time.sleep(0.5), {"url": url})[1])
+    monkeypatch.setattr(provider, "_EXTRACT_TIMEOUT_SECS", 0.1)
+
+    results = asyncio.run(
+        provider.LocalWebSearchProvider().extract(["https://example.com/a"])
+    )
+
+    assert "budget" not in results[0]["error"], results
+    assert "timed out" in results[0]["error"], results
 
 
 def test_extract_one_import_error_names_interpreter_when_module_present(monkeypatch):
