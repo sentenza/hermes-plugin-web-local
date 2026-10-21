@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sys
 from time import monotonic
 from typing import Any, Optional
 from urllib.parse import urljoin
@@ -97,6 +98,32 @@ def _import_trafilatura() -> Any:
     """Import a PM-prepared dependency; never mutate the runtime environment."""
     import trafilatura
     return trafilatura
+
+
+_TRAFILATURA_REMEDY = (
+    "Install trafilatura into the environment of the RUNNING process — a "
+    "dependency installed into another venv has no effect. Run:\n"
+    "  python -c \"import sys; print(sys.executable)\"\n"
+    "  uv pip install --python <that python> 'trafilatura>=2.0,<3'\n"
+    "then restart the gateway/agent."
+)
+
+
+def _find_spec(name: str) -> Any:
+    """Indirection so tests can simulate a missing module without uninstalling it."""
+    import importlib.util
+
+    return importlib.util.find_spec(name)
+
+
+def _dependency_problem() -> Optional[str]:
+    """Return an actionable diagnostic when trafilatura is missing, else None."""
+    if _find_spec("trafilatura") is not None:
+        return None
+    return (
+        "trafilatura is not installed in the Python running this agent "
+        f"({sys.executable}). {_TRAFILATURA_REMEDY}"
+    )
 
 
 def _make_client() -> Any:
