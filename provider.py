@@ -113,6 +113,11 @@ def _find_spec(name: str) -> Any:
     """Indirection so tests can simulate a missing module without uninstalling it."""
     import importlib.util
 
+    if name in sys.modules:
+        # An already-imported module wins: find_spec() raises for a module
+        # object without a __spec__ (e.g. a test stub), and a None entry means
+        # the import failed before.
+        return sys.modules[name]
     return importlib.util.find_spec(name)
 
 
@@ -425,12 +430,7 @@ class LocalWebSearchProvider(WebSearchProvider):
 
     def is_available(self) -> bool:
         """Report actual dependency availability, never an intended installation."""
-        try:
-            import trafilatura
-
-            return True
-        except ImportError:
-            return False
+        return _dependency_problem() is None
 
     def supports_search(self) -> bool:
         return False
