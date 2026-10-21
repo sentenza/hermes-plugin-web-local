@@ -29,6 +29,17 @@ def test_is_available_true_when_module_present(monkeypatch):
     assert provider.LocalWebSearchProvider().is_available() is True
 
 
+def test_is_available_false_when_module_present_but_broken(monkeypatch):
+    """A present-but-broken install must not be advertised as available."""
+    monkeypatch.setattr(provider, "_find_spec", lambda name: object())
+
+    def _raise():
+        raise ImportError("cannot import name 'extract' from 'trafilatura'")
+
+    monkeypatch.setattr(provider, "_import_trafilatura", _raise)
+    assert provider.LocalWebSearchProvider().is_available() is False
+
+
 def test_extract_short_circuits_without_network(monkeypatch):
     monkeypatch.setattr(provider, "_find_spec", lambda name: None)
 

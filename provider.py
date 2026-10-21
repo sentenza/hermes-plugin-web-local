@@ -429,8 +429,18 @@ class LocalWebSearchProvider(WebSearchProvider):
         return "Local (httpx + trafilatura)"
 
     def is_available(self) -> bool:
-        """Report actual dependency availability, never an intended installation."""
-        return _dependency_problem() is None
+        """Report actual dependency availability, never an intended installation.
+
+        The probe answers "is it installed"; the import answers "does it work".
+        A present-but-broken install must not be advertised as available.
+        """
+        if _dependency_problem() is not None:
+            return False
+        try:
+            _import_trafilatura()
+        except ImportError:
+            return False
+        return True
 
     def supports_search(self) -> bool:
         return False
