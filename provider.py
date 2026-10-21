@@ -457,6 +457,22 @@ class LocalWebSearchProvider(WebSearchProvider):
         if _is_interrupted():
             return [{"url": u, "error": "Interrupted", "title": ""} for u in urls]
 
+        # A missing dependency is a packaging problem, not a per-URL one: report
+        # it before any network access instead of fetching and failing later.
+        problem = _dependency_problem()
+        if problem is not None:
+            logger.error("Local extract unavailable: %s", problem)
+            return [
+                {
+                    "url": url,
+                    "title": "",
+                    "content": "",
+                    "raw_content": "",
+                    "error": problem,
+                }
+                for url in urls
+            ]
+
         format = kwargs.get("format")
         results: list[dict[str, Any]] = []
         loop = asyncio.get_running_loop()
